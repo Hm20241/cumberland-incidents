@@ -176,6 +176,17 @@ const svg = t => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[t] || ICON
 const PRIORITY = ["Traffic","Fire","EMS","Law","other"];
 const TZ = "America/New_York";
 function clock(ms, secs){ return new Date(ms).toLocaleTimeString("en-US", {timeZone:TZ, hour:"numeric", minute:"2-digit", second: secs ? "2-digit" : undefined, hour12:true}) }
+// The feed stores Eastern wall-clock time labeled as UTC; convert it to a true timestamp
+function wallAsUTC(ms){
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", {timeZone:TZ, hourCycle:"h23", year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit"})
+    .formatToParts(new Date(ms)).map(x => [x.type, x.value]));
+  return Date.UTC(+p.year, p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+}
+function evt(r){
+  if (r._t) return r._t;
+  const raw = r.EventDateTime, guess = raw + (raw - wallAsUTC(raw));
+  return r._t = guess + (raw - wallAsUTC(guess));
+}
 function stamp(ms){
   const d = new Date(ms), today = new Date().toLocaleDateString("en-US", {timeZone:TZ}) === d.toLocaleDateString("en-US", {timeZone:TZ});
   return (today ? "" : d.toLocaleDateString("en-US", {timeZone:TZ, month:"short", day:"numeric"}) + ", ") + clock(ms);
@@ -271,13 +282,13 @@ function render(){
     list.innerHTML = rows.map(r => {
       const isNew = tab === "active" && fresh.has(r.CaseNumber);
       const sel = selected === r.CaseNumber;
-      const age = tab === "active" ? ago(r.EventDateTime) : "ran " + ago(r.EventDateTime - (Date.now() - r.clearedAt));
+      const age = tab === "active" ? ago(evt(r)) : "ran " + ago(evt(r) - (Date.now() - r.clearedAt));
       return `<div class="inc${sel?" sel":""}${isNew?" fresh":""}" data-t="${typeOf(r)}" data-id="${esc(r.CaseNumber)}" tabindex="0">
         <div class="stripe"></div>
         <h3><span class="ico ${typeOf(r)}">${svg(typeOf(r))}</span>${esc(r.Incident)}${isNew ? '<span class="badge">NEW</span>' : ""}</h3>
         <div class="age">${age}</div>
         <div class="loc">${esc(where(r))} · <b>${esc(r.Municipality)}</b></div>
-        <div class="meta"><span>${stamp(r.EventDateTime)}</span><span>${esc(r.unid)}</span></div>
+        <div class="meta"><span>${stamp(evt(r))}</span><span>${esc(r.unid)}</span></div>
         ${sel ? detail(r) : ""}
       </div>`;
     }).join("");
@@ -307,7 +318,7 @@ function drawMarkers(rows){
     groups.get(key).push(r);
   }
   for (const [key, g] of groups){
-    g.sort((a, b) => PRIORITY.indexOf(typeOf(a)) - PRIORITY.indexOf(typeOf(b)) || b.EventDateTime - a.EventDateTime);
+    g.sort((a, b) => PRIORITY.indexOf(typeOf(a)) - PRIORITY.indexOf(typeOf(b)) || evt(b) - evt(a));
     const lead = g[0], t = typeOf(lead);
     const isNew = g.some(r => fresh.has(r.CaseNumber));
     const isSel = g.some(r => r.CaseNumber === selected);
@@ -321,7 +332,7 @@ function drawMarkers(rows){
     } else m.setIcon(icon);
     m._lead = lead.CaseNumber;
     m.setZIndexOffset(isNew || isSel ? 1000 : 0);
-    m.bindTooltip(g.map(r => `<b>${esc(r.Incident)}</b> · ${ago(r.EventDateTime)} ago`).join("<br>")
+    m.bindTooltip(g.map(r => `<b>${esc(r.Incident)}</b> · ${ago(evt(r))} ago`).join("<br>")
       + `<br>${esc(where(lead))}<br>${esc(lead.Municipality)}`, {direction:"top"});
   }
   for (const [key, m] of markers) if (!groups.has(key)){ map.removeLayer(m); markers.delete(key); }
