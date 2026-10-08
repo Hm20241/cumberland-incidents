@@ -11,7 +11,7 @@
 /* Layout: dispatch board — status strip, map left, incident log right; stacks map-over-log on phones */
 :root{
   --bg:#eef1f4; --panel:#ffffff; --line:#d5dbe2; --ink:#14202b; --muted:#5d6b78;
-  --ems:#c2282f; --fire:#d4691a; --law:#2459b8; --other:#6b7480;
+  --ems:#c2282f; --fire:#d4691a; --law:#2459b8; --traffic:#7b3fb5; --other:#6b7480;
   --new:#f2c230; --ok:#1f8a4c;
   --f-display:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
@@ -19,11 +19,11 @@
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0f151b; --panel:#17202a; --line:#2a3642; --ink:#e4eaf0; --muted:#8d9aa7;
-  --ems:#f0565c; --fire:#f08a3e; --law:#5b8ef0; --other:#97a1ad; --new:#f2c230; --ok:#44c07a;
+  --ems:#f0565c; --fire:#f08a3e; --law:#5b8ef0; --traffic:#a97ae6; --other:#97a1ad; --new:#f2c230; --ok:#44c07a;
   color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0f151b; --panel:#17202a; --line:#2a3642; --ink:#e4eaf0; --muted:#8d9aa7;
-  --ems:#f0565c; --fire:#f08a3e; --law:#5b8ef0; --other:#97a1ad; --new:#f2c230; --ok:#44c07a;
+  --ems:#f0565c; --fire:#f08a3e; --law:#5b8ef0; --traffic:#a97ae6; --other:#97a1ad; --new:#f2c230; --ok:#44c07a;
   color-scheme:dark}
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -35,13 +35,14 @@ header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:10px 
 .brand{display:flex;flex-direction:column;line-height:1.1;margin-right:auto}
 .brand b{font-size:19px;letter-spacing:.01em}
 .brand span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
-.counts{display:flex;gap:6px}
+.counts{display:flex;flex-wrap:wrap;gap:6px}
 .count{display:flex;align-items:baseline;gap:6px;padding:4px 10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);cursor:pointer}
 .count b{font:600 20px var(--f-mono);font-variant-numeric:tabular-nums}
 .count span{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
 .count[data-t="EMS"]{border-left:4px solid var(--ems)}
 .count[data-t="Fire"]{border-left:4px solid var(--fire)}
 .count[data-t="Law"]{border-left:4px solid var(--law)}
+.count[data-t="Traffic"]{border-left:4px solid var(--traffic)}
 .count[aria-pressed="false"]{opacity:.4}
 .status{display:flex;align-items:center;gap:10px;font:12px var(--f-mono);color:var(--muted)}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 var(--ok);animation:pulse 2s infinite}
@@ -63,7 +64,10 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 .inc{display:grid;grid-template-columns:4px minmax(0,1fr) auto;gap:0 12px;padding:10px 12px 10px 0;border-bottom:1px solid var(--line);cursor:pointer}
 .inc:hover,.inc.sel{background:var(--bg)}
 .inc .stripe{grid-row:1/span 3;background:var(--other)}
-.inc[data-t="EMS"] .stripe{background:var(--ems)} .inc[data-t="Fire"] .stripe{background:var(--fire)} .inc[data-t="Law"] .stripe{background:var(--law)}
+.inc[data-t="EMS"] .stripe{background:var(--ems)} .inc[data-t="Fire"] .stripe{background:var(--fire)} .inc[data-t="Law"] .stripe{background:var(--law)} .inc[data-t="Traffic"] .stripe{background:var(--traffic)}
+.ico{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;margin-right:6px;vertical-align:-3px;color:#fff;background:var(--other)}
+.ico svg{width:12px;height:12px;fill:currentColor}
+.ico.EMS{background:var(--ems)} .ico.Fire{background:var(--fire)} .ico.Law{background:var(--law)} .ico.Traffic{background:var(--traffic)}
 .inc h3{margin:0;font-size:16px;font-weight:700;text-wrap:balance}
 .inc .age{font:600 13px var(--f-mono);font-variant-numeric:tabular-nums;text-align:right;color:var(--muted)}
 .inc .loc{grid-column:2/span 2;color:var(--ink);font-size:14px}
@@ -79,9 +83,12 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 .empty{padding:28px 16px;color:var(--muted);text-align:center}
 footer{padding:6px 16px;font:11px var(--f-mono);color:var(--muted);border-top:1px solid var(--line);background:var(--panel)}
 
-.pin{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45)}
-.pin.EMS{background:var(--ems)} .pin.Fire{background:var(--fire)} .pin.Law{background:var(--law)} .pin.other{background:var(--other)}
-.pin.isnew{outline:3px solid var(--new)}
+.mk{position:relative;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;background:var(--other);border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.5);transition:transform .15s}
+.mk svg{width:16px;height:16px;fill:currentColor}
+.mk.EMS{background:var(--ems)} .mk.Fire{background:var(--fire)} .mk.Law{background:var(--law)} .mk.Traffic{background:var(--traffic)}
+.mk.isnew{outline:3px solid var(--new);outline-offset:1px}
+.mk.sel{transform:scale(1.3)}
+.mk .n{position:absolute;top:-7px;right:-8px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--ink);color:var(--panel);font:600 10px/17px var(--f-mono);text-align:center}
 .leaflet-container{font:inherit}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9)}}
 :root[data-theme="dark"] .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9)}
@@ -101,6 +108,7 @@ footer{padding:6px 16px;font:11px var(--f-mono);color:var(--muted);border-top:1p
     <button class="count" data-t="EMS" aria-pressed="true"><b id="cEMS">–</b><span>EMS</span></button>
     <button class="count" data-t="Fire" aria-pressed="true"><b id="cFire">–</b><span>Fire</span></button>
     <button class="count" data-t="Law" aria-pressed="true"><b id="cLaw">–</b><span>Police</span></button>
+    <button class="count" data-t="Traffic" aria-pressed="true"><b id="cTraffic">–</b><span>Traffic</span></button>
   </div>
   <div class="status">
     <span class="dot" id="dot"></span>
@@ -142,7 +150,7 @@ let seen = new Set(store.get("seen", []));
 let cleared = store.get("cleared", []).filter(c => new Date(c.clearedAt).toDateString() === new Date().toDateString());
 let fresh = new Set();           // arrived during this session
 let firstLoad = true, tab = "active", selected = null, timer = null;
-let show = {EMS:true, Fire:true, Law:true};
+let show = {EMS:true, Fire:true, Law:true, Traffic:true};
 let chime = store.get("chime", false);
 
 // ---- map
@@ -152,7 +160,20 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 }).addTo(map);
 const markers = new Map();
 
-function typeOf(r){ return ["EMS","Fire","Law"].includes(r.EventType) ? r.EventType : "other" }
+const TRAFFIC_RE = /ACCIDENT|TRAFFIC|CRASH|COLLISION|VEHICLE|MVA|HIT AND RUN|ROADWAY/i;
+function typeOf(r){
+  if (TRAFFIC_RE.test(r.Incident || "")) return "Traffic";
+  return ["EMS","Fire","Law"].includes(r.EventType) ? r.EventType : "other";
+}
+const ICONS = {
+  EMS: '<path d="M9 2h6v7h7v6h-7v7H9v-7H2V9h7z"/>',
+  Fire: '<path d="M12 1.5c1.2 3.8 5.5 6.2 5.5 11.8a5.5 5.5 0 0 1-11 0c0-2.8 1.4-4.8 2.8-6.1.2 2 1.1 3.3 2.4 3.9C11 8 11.2 4.6 12 1.5z"/>',
+  Law: '<path d="M12 1.5l8.5 3.2v6.2c0 5.3-3.6 9.9-8.5 11.6-4.9-1.7-8.5-6.3-8.5-11.6V4.7zm0 5l-1.4 2.9-3.2.4 2.3 2.2-.6 3.1 2.9-1.5 2.9 1.5-.6-3.1 2.3-2.2-3.2-.4z" fill-rule="evenodd"/>',
+  Traffic: '<path fill-rule="evenodd" d="M4.8 10.5l1.7-4.6A2.2 2.2 0 0 1 8.6 4.4h6.8a2.2 2.2 0 0 1 2.1 1.5l1.7 4.6A2.2 2.2 0 0 1 21 12.7V18h-2.2v2h-3v-2H8.2v2h-3v-2H3v-5.3a2.2 2.2 0 0 1 1.8-2.2zm2.3-.2h9.8l-1.2-3.4a.9.9 0 0 0-.8-.6H9.1a.9.9 0 0 0-.8.6zM6.6 15.6a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2zm10.8 0a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2z"/>',
+  other: '<circle cx="12" cy="12" r="5"/>'
+};
+const svg = t => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[t] || ICONS.other}</svg>`;
+const PRIORITY = ["Traffic","Fire","EMS","Law","other"];
 function clean(s){ return (s||"").replace(/\s+/g," ").trim() }
 function esc(s){ return clean(String(s ?? "")).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])) }
 function ago(ms){
@@ -232,7 +253,7 @@ function passes(r){
 // ---- render
 function render(){
   const all = [...active.values()];
-  for (const t of ["EMS","Fire","Law"]) $("c"+t).textContent = all.filter(r => r.EventType === t).length;
+  for (const t of ["EMS","Fire","Law","Traffic"]) $("c"+t).textContent = all.filter(r => typeOf(r) === t).length;
   $("nActive").textContent = "(" + all.length + ")";
   $("nCleared").textContent = "(" + cleared.length + ")";
 
@@ -247,7 +268,7 @@ function render(){
       const age = tab === "active" ? ago(r.EventDateTime) : "ran " + ago(r.EventDateTime - (Date.now() - r.clearedAt));
       return `<div class="inc${sel?" sel":""}${isNew?" fresh":""}" data-t="${typeOf(r)}" data-id="${esc(r.CaseNumber)}" tabindex="0">
         <div class="stripe"></div>
-        <h3>${esc(r.Incident)}${isNew ? '<span class="badge">NEW</span>' : ""}</h3>
+        <h3><span class="ico ${typeOf(r)}">${svg(typeOf(r))}</span>${esc(r.Incident)}${isNew ? '<span class="badge">NEW</span>' : ""}</h3>
         <div class="age">${age}</div>
         <div class="loc">${esc(where(r))} · <b>${esc(r.Municipality)}</b></div>
         <div class="meta"><span>${esc(r.TextDateTime)}</span><span>${esc(r.unid)}</span></div>
@@ -271,21 +292,33 @@ function detail(r){
 }
 
 function drawMarkers(rows){
-  const keep = new Set();
+  // One marker per location: a crash often has separate fire, EMS and police cases at the same spot
+  const groups = new Map();
   for (const r of rows){
     if (!r.latitude || !r.longitude) continue;
-    keep.add(r.CaseNumber);
-    const cls = `pin ${typeOf(r)}${fresh.has(r.CaseNumber) ? " isnew" : ""}`;
-    let m = markers.get(r.CaseNumber);
-    const icon = L.divIcon({className:"", html:`<div class="${cls}"></div>`, iconSize:[16,16], iconAnchor:[8,8]});
-    if (!m){
-      m = L.marker([r.latitude, r.longitude], {icon}).addTo(map);
-      m.on("click", () => select(r.CaseNumber, false));
-      markers.set(r.CaseNumber, m);
-    } else m.setIcon(icon);
-    m.bindTooltip(`<b>${esc(r.Incident)}</b><br>${esc(where(r))}<br>${esc(r.Municipality)} · ${ago(r.EventDateTime)} ago`);
+    const key = r.latitude.toFixed(4) + "," + r.longitude.toFixed(4);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
   }
-  for (const [id, m] of markers) if (!keep.has(id)){ map.removeLayer(m); markers.delete(id); }
+  for (const [key, g] of groups){
+    g.sort((a, b) => PRIORITY.indexOf(typeOf(a)) - PRIORITY.indexOf(typeOf(b)) || b.EventDateTime - a.EventDateTime);
+    const lead = g[0], t = typeOf(lead);
+    const isNew = g.some(r => fresh.has(r.CaseNumber));
+    const isSel = g.some(r => r.CaseNumber === selected);
+    const html = `<div class="mk ${t}${isNew ? " isnew" : ""}${isSel ? " sel" : ""}">${svg(t)}${g.length > 1 ? `<span class="n">${g.length}</span>` : ""}</div>`;
+    const icon = L.divIcon({className:"", html, iconSize:[30,30], iconAnchor:[15,15], tooltipAnchor:[0,-16]});
+    let m = markers.get(key);
+    if (!m){
+      m = L.marker([lead.latitude, lead.longitude], {icon, riseOnHover:true}).addTo(map);
+      m.on("click", () => select(m._lead, false));
+      markers.set(key, m);
+    } else m.setIcon(icon);
+    m._lead = lead.CaseNumber;
+    m.setZIndexOffset(isNew || isSel ? 1000 : 0);
+    m.bindTooltip(g.map(r => `<b>${esc(r.Incident)}</b> · ${ago(r.EventDateTime)} ago`).join("<br>")
+      + `<br>${esc(where(lead))}<br>${esc(lead.Municipality)}`, {direction:"top"});
+  }
+  for (const [key, m] of markers) if (!groups.has(key)){ map.removeLayer(m); markers.delete(key); }
 }
 
 function select(id, fly){
