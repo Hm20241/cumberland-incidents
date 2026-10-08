@@ -81,6 +81,15 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 .detail dt{color:var(--muted);text-transform:uppercase;font-size:11px;letter-spacing:.08em;padding-top:2px}
 .detail dd{margin:0;font-family:var(--f-mono);font-size:12px;overflow-wrap:anywhere}
 .detail a{color:var(--law);margin-right:14px;font-weight:600}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--panel);color:var(--ink);box-shadow:0 3px 14px rgba(0,0,0,.35)}
+.leaflet-popup-content{margin:10px 12px;font:14px/1.35 var(--f-display);max-height:46vh;overflow-y:auto}
+.leaflet-container a.leaflet-popup-close-button{color:var(--muted)}
+.pop + .pop{border-top:1px solid var(--line);margin-top:8px;padding-top:8px}
+.pop-h{display:flex;flex-wrap:wrap;align-items:center;gap:2px 0}
+.pop-h b{font-size:15px;margin-right:8px}
+.pop-age{font:12px var(--f-mono);color:var(--muted)}
+.pop-loc{font-size:13px;margin-top:2px}
+.pop .detail{padding:0}
 .empty{padding:28px 16px;color:var(--muted);text-align:center}
 .cond{display:flex;flex-direction:column;gap:8px;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
 .alert{--sev:var(--warn);border:1px solid color-mix(in srgb,var(--sev) 45%,var(--line));border-left:5px solid var(--sev);background:color-mix(in srgb,var(--sev) 10%,var(--panel));padding:7px 10px;border-radius:4px;cursor:pointer;text-align:left;width:100%}
@@ -342,8 +351,9 @@ function render(){
   drawMarkers(tab === "active" ? rows : []);
 }
 
-function detail(r){
-  return `<div class="detail"><dl>
+function detail(r){ return `<div class="detail">${detailBody(r)}</div>`; }
+function detailBody(r){
+  return `<dl>
     <dt>Case</dt><dd>${esc(r.CaseNumber)}</dd>
     <dt>Units</dt><dd>${esc(r.unid)} (${esc(r.UnitDesc)})</dd>
     <dt>Agency</dt><dd>${esc(r.StationName)}</dd>
@@ -351,8 +361,14 @@ function detail(r){
     ${r.clearedAt ? `<dt>Cleared</dt><dd>${stamp(r.clearedAt)}</dd>` : ""}
   </dl>
   <a href="https://webcad.cumberlandcountypa.gov/WebCAd_Detail.aspx?@search=${encodeURIComponent(r.CaseNumber)}" target="_blank" rel="noopener">WebCAD details</a>
-  <a href="https://www.google.com/maps?q=${r.latitude},${r.longitude}" target="_blank" rel="noopener">Directions</a></div>`;
+  <a href="https://www.google.com/maps?q=${r.latitude},${r.longitude}" target="_blank" rel="noopener">Directions</a>`;
 }
+function popupHtml(g){
+  return g.map(r => `<div class="pop"><div class="pop-h"><span class="ico ${typeOf(r)}">${svg(typeOf(r))}</span><b>${esc(r.Incident)}</b><span class="pop-age">${stamp(evt(r))} · ${ago(evt(r))} ago</span></div>
+    <div class="pop-loc">${esc(where(r))} · ${esc(r.Municipality)}</div>
+    <div class="detail">${detailBody(r)}</div></div>`).join("");
+}
+const canHover = matchMedia("(hover:hover)").matches;
 
 function drawMarkers(rows){
   // One marker per location: a crash often has separate fire, EMS and police cases at the same spot
@@ -373,23 +389,30 @@ function drawMarkers(rows){
     let m = markers.get(key);
     if (!m){
       m = L.marker([lead.latitude, lead.longitude], {icon, riseOnHover:true}).addTo(map);
-      m.on("click", () => select(m._lead, false));
+      m.bindPopup("", {maxWidth:300, minWidth:220, autoPanPadding:[16,16]});
+      m.on("click", () => { m.setPopupContent(popupHtml(m._group)); select(m._lead, false, true); });
       markers.set(key, m);
     } else m.setIcon(icon);
-    m._lead = lead.CaseNumber;
+    m._lead = lead.CaseNumber; m._group = g;
+    if (m.isPopupOpen()) m.setPopupContent(popupHtml(g));
     m.setZIndexOffset(isNew || isSel ? 1000 : 0);
-    m.bindTooltip(g.map(r => `<b>${esc(r.Incident)}</b> · ${ago(evt(r))} ago`).join("<br>")
+    if (canHover) m.bindTooltip(g.map(r => `<b>${esc(r.Incident)}</b> · ${ago(evt(r))} ago`).join("<br>")
       + `<br>${esc(where(lead))}<br>${esc(lead.Municipality)}`, {direction:"top"});
   }
   for (const [key, m] of markers) if (!groups.has(key)){ map.removeLayer(m); markers.delete(key); }
 }
 
-function select(id, fly){
-  selected = selected === id ? null : id;
+function select(id, fly, keep){
+  selected = keep ? id : (selected === id ? null : id);
   fresh.delete(id);
   const r = active.get(id) || cleared.find(c => c.CaseNumber === id);
   if (selected && r && r.latitude && fly) map.flyTo([r.latitude, r.longitude], 14, {duration:.6});
+  if (!selected) map.closePopup();
   render();
+  if (selected && fly){
+    const m = [...markers.values()].find(m => m._group && m._group.some(x => x.CaseNumber === id));
+    if (m) map.once("moveend", () => { m.setPopupContent(popupHtml(m._group)); m.openPopup(); });
+  }
   const el = document.querySelector(`.inc[data-id="${CSS.escape(id)}"]`);
   if (el && !fly) el.scrollIntoView({block:"nearest"});
 }
