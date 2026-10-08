@@ -174,6 +174,12 @@ const ICONS = {
 };
 const svg = t => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[t] || ICONS.other}</svg>`;
 const PRIORITY = ["Traffic","Fire","EMS","Law","other"];
+const TZ = "America/New_York";
+function clock(ms, secs){ return new Date(ms).toLocaleTimeString("en-US", {timeZone:TZ, hour:"numeric", minute:"2-digit", second: secs ? "2-digit" : undefined, hour12:true}) }
+function stamp(ms){
+  const d = new Date(ms), today = new Date().toLocaleDateString("en-US", {timeZone:TZ}) === d.toLocaleDateString("en-US", {timeZone:TZ});
+  return (today ? "" : d.toLocaleDateString("en-US", {timeZone:TZ, month:"short", day:"numeric"}) + ", ") + clock(ms);
+}
 function clean(s){ return (s||"").replace(/\s+/g," ").trim() }
 function esc(s){ return clean(String(s ?? "")).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])) }
 function ago(ms){
@@ -194,7 +200,7 @@ async function poll(){
     const j = await res.json();
     if (j.error) throw new Error(j.error.message || "Feed error");
     ingest(j.features.map(f => f.attributes));
-    setStatus("ok", "Updated " + new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"}));
+    setStatus("ok", "Updated " + clock(Date.now(), true));
   }catch(e){
     setStatus("err", "Feed unreachable, retrying");
   }
@@ -271,7 +277,7 @@ function render(){
         <h3><span class="ico ${typeOf(r)}">${svg(typeOf(r))}</span>${esc(r.Incident)}${isNew ? '<span class="badge">NEW</span>' : ""}</h3>
         <div class="age">${age}</div>
         <div class="loc">${esc(where(r))} · <b>${esc(r.Municipality)}</b></div>
-        <div class="meta"><span>${esc(r.TextDateTime)}</span><span>${esc(r.unid)}</span></div>
+        <div class="meta"><span>${stamp(r.EventDateTime)}</span><span>${esc(r.unid)}</span></div>
         ${sel ? detail(r) : ""}
       </div>`;
     }).join("");
@@ -285,7 +291,7 @@ function detail(r){
     <dt>Units</dt><dd>${esc(r.unid)} (${esc(r.UnitDesc)})</dd>
     <dt>Agency</dt><dd>${esc(r.StationName)}</dd>
     <dt>Box</dt><dd>${esc(r.BoxNumber)}</dd>
-    ${r.clearedAt ? `<dt>Cleared</dt><dd>${new Date(r.clearedAt).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</dd>` : ""}
+    ${r.clearedAt ? `<dt>Cleared</dt><dd>${stamp(r.clearedAt)}</dd>` : ""}
   </dl>
   <a href="https://webcad.cumberlandcountypa.gov/WebCAd_Detail.aspx?@search=${encodeURIComponent(r.CaseNumber)}" target="_blank" rel="noopener">WebCAD details</a>
   <a href="https://www.google.com/maps?q=${r.latitude},${r.longitude}" target="_blank" rel="noopener">Directions</a></div>`;
@@ -360,8 +366,8 @@ function start(){ clearInterval(timer); poll(); timer = setInterval(poll, POLL_M
 document.addEventListener("visibilitychange", () => {
   if (document.hidden){ clearInterval(timer); setStatus("paused", "Paused while hidden"); } else start();
 });
-setInterval(() => { $("clock").textContent = new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}); if (active.size) render(); }, 60000);
-$("clock").textContent = new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+setInterval(() => { $("clock").textContent = clock(Date.now()); if (active.size) render(); }, 60000);
+$("clock").textContent = clock(Date.now());
 paintChime();
 start();
 </script>
