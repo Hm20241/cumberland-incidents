@@ -353,7 +353,11 @@ function render(){
   $("nToday").textContent = "(" + Object.keys(day.calls).length + ")";
   if (tab === "today"){ renderToday(); drawMarkers(all.filter(passes)); return; }
 
-  const rows = (tab === "active" ? all : cleared).filter(passes);
+  // Newest first: active by dispatch time, cleared by when they cleared
+  const rows = (tab === "active"
+    ? [...all].sort((a, b) => evt(b) - evt(a) || String(b.CaseNumber).localeCompare(String(a.CaseNumber)))
+    : [...cleared].sort((a, b) => b.clearedAt - a.clearedAt)
+  ).filter(passes);
   const list = $("list");
   if (!rows.length){
     list.innerHTML = `<div class="empty">${tab === "active" ? "No active incidents match these filters." : "Nothing has cleared since this page opened today."}</div>`;
